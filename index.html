@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔥지니쌤이랑 음운의변동 무한지옥🔥</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: #fff; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 95%; max-width: 650px; text-align: center; }
+        h1 { color: #1a73e8; margin-bottom: 5px; }
+        .subtitle { color: #666; margin-bottom: 30px; font-size: 0.9em; }
+        .score-box { font-size: 1.1em; margin-bottom: 20px; color: #444; font-weight: bold; }
+        .question-box { min-height: 120px; display: flex; flex-direction: column; justify-content: center; margin-bottom: 30px; border-top: 2px solid #eee; padding-top: 20px; }
+        .q-num { font-size: 1.2em; color: #1a73e8; font-weight: bold; margin-bottom: 10px; }
+        .q-text { font-size: 1.3em; line-height: 1.6; word-break: keep-all; }
+        .btn-group { display: flex; justify-content: center; gap: 25px; margin-bottom: 20px; }
+        .ox-btn { width: 100px; height: 100px; font-size: 2.5em; border: none; border-radius: 50%; cursor: pointer; color: #fff; transition: transform 0.2s, background 0.2s; font-weight: bold; }
+        .btn-o { background-color: #28a745; }
+        .btn-x { background-color: #dc3545; }
+        .ox-btn:hover { transform: scale(1.1); }
+        .ox-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        #feedback { font-size: 1.2em; font-weight: bold; margin: 15px 0; min-height: 1.5em; }
+        #explanation { background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: left; font-size: 1em; line-height: 1.6; display: none; margin-bottom: 20px; border-left: 5px solid #1a73e8; }
+        #next-btn { background: #1a73e8; color: #fff; border: none; padding: 12px 30px; font-size: 1.1em; border-radius: 5px; cursor: pointer; display: none; }
+        #result-screen { display: none; }
+        .rank-msg { font-size: 1.5em; font-weight: bold; color: #d93025; margin-top: 20px; padding: 20px; border: 2px dashed #d93025; border-radius: 10px; }
+        .restart-btn { margin-top: 30px; padding: 10px 20px; background: #5f6368; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="quiz-screen">
+        <h1>지니T랑 문법 공부</h1>
+        <div class="subtitle">실수하면 등급 밀린다 진짜로</div>
+        <div class="score-box">현재 점수: <span id="current-score">0</span> / 10</div>
+        
+        <div class="question-box">
+            <div class="q-num">문제 <span id="display-q-num">1</span></div>
+            <div class="q-text" id="display-q-text">질문을 불러오는 중...</div>
+        </div>
+
+        <div class="btn-group">
+            <button class="ox-btn btn-o" onclick="handleAnswer('O')">O</button>
+            <button class="ox-btn btn-x" onclick="handleAnswer('X')">X</button>
+        </div>
+
+        <div id="feedback"></div>
+        <div id="explanation"></div>
+        <button id="next-btn" onclick="goToNext()">다음 문제 ▶</button>
+    </div>
+
+    <div id="result-screen">
+        <h1>시험 종료</h1>
+        <div class="score-box" style="font-size: 2em;">최종 점수: <span id="final-score">0</span> / 10</div>
+        <div id="rank-comment" class="rank-msg"></div>
+        <button class="restart-btn" onclick="location.reload()">다시 도전하기</button>
+    </div>
+</div>
+
+<script>
+    const allQuizData = [
+        { q: "'닭이'가 [달기]로 발음되는 것은 자음군 단순화가 일어난 결과이다.", a: "X", e: "'닭이'는 형식 형태소 '이'가 결합하여 연음([달기])된 것이지 탈락이 아닙니다." },
+        { q: "'흙을'은 [흘글]로 발음되며 음운의 탈락이 발생한다.", a: "X", e: "형식 형태소 '을'이 왔으므로 연음만 일어납니다. 탈락은 없습니다." },
+        { q: "'밭이랑'이 체언+조사로 쓰일 때는 [바치랑]으로 발음된다.", a: "O", e: "조사(형식 형태소)이므로 구개음화가 적용됩니다." },
+        { q: "구개음화는 조음 위치가 경구개로 바뀌는 교체 현상이다.", a: "O", e: "치조음(ㄷ,ㅌ)이 경구개음(ㅈ,ㅊ)으로, 파열음이 파찰음으로 바뀝니다." },
+        { q: "'솜이불'은 'ㄴ'이 첨가되어 [솜니불]로 발음된다.", a: "O", e: "자음+이/야/여/요/유 환경에서 'ㄴ'이 첨가됩니다." },
+        { q: "'신라[실라]'는 순행 유음화의 예이다.", a: "X", e: "뒤의 'ㄹ'이 앞의 'ㄴ'에 영향을 주었으므로 '역행' 유음화입니다." },
+        { q: "'의견란'은 표준 발음이 [의견난]이다.", a: "O", e: "한자어 예외 규정에 따라 유음화가 아닌 비음화가 일어납니다." },
+        { q: "'국밥[국빱]'과 '신고[신꼬]'는 된소리되기의 원리가 같다.", a: "X", e: "'국밥'은 파열음 뒤, '신고'는 어간 비음 뒤 조건으로 서로 다릅니다." },
+        { q: "'값어치'는 [가버치]로 발음되며 음절의 끝소리 규칙이 적용된다.", a: "X", e: "실질 형태소 결합으로 보아 자음군 단순화(탈락) 후 연음된 것입니다." },
+        { q: "'옷 한 벌'이 [오탄벌]이 되는 과정엔 교체와 축약이 모두 있다.", a: "O", e: "ㅅ->ㄷ(교체), ㄷ+ㅎ->ㅌ(축약) 순서입니다." },
+        { q: "'넓죽하다'는 [넙쭈카다]로 발음되며 'ㅂ'이 남는 예외이다.", a: "O", e: "'넓-'은 특정 단어에서 'ㅂ'으로 발음되는 예외가 있습니다." },
+        { q: "'맑게'가 [말께]로 발음되는 것은 뒤의 'ㄱ' 때문이다.", a: "O", e: "'ㄺ'은 'ㄱ' 앞에서 'ㄹ'로 발음한다는 예외 규정입니다." },
+        { q: "'읊어'는 [을퍼]로 발음되며 탈락 현상이 일어난다.", a: "X", e: "연음일 뿐 탈락은 일어나지 않습니다." },
+        { q: "'국물[궁물]'은 조음 위치는 유지되고 방법만 변하는 비음화이다.", a: "O", e: "ㄱ(연구개) -> ㅇ(연구개)로 위치는 고정, 방법만 비음으로 변합니다." },
+        { q: "'좋은'이 [조은]이 되는 것은 'ㅎ' 탈락이다.", a: "O", e: "모음 어미 앞 'ㅎ' 탈락은 자음 탈락의 일종입니다." },
+        { q: "'둥근'은 어간 '둥글-'에 어미 '-은'이 결합한 것이다.", a: "X", e: "어미 '-ㄴ'이 결합하여 'ㄹ'이 탈락한 형태입니다." },
+        { q: "'써라'는 '쓰- + -어라'에서 'ㅡ'가 탈락한 것이다.", a: "O", e: "모음 어미 앞 'ㅡ' 탈락 현상입니다." },
+        { q: "'부엌 안'의 발음은 [부어칸]이다.", a: "X", e: "실질 형태소 '안' 앞이므로 끝소리 규칙 적용 후 연음되어 [부어간]입니다." },
+        { q: "'꽃다발'은 교체가 2번 일어난다.", a: "O", e: "ㅊ->ㄷ(교체), ㄷ+ㄷ->ㄸ(교체)입니다." },
+        { q: "'칼날[칼랄]'은 순행 유음화이다.", a: "O", e: "앞의 'ㄹ'이 뒤의 'ㄴ'을 변화시켰으므로 순행입니다." },
+        { q: "'권력'은 [권녁]으로 발음한다.", a: "X", e: "유음화가 적용되어 [궐력]이 표준 발음입니다." },
+        { q: "'생산량'은 [생살량]으로 발음한다.", a: "X", e: "한자어 예외로 [생산냥]이 맞습니다." },
+        { q: "구개음화는 조음 위치와 방법이 모두 변한다.", a: "O", e: "파열음(위치:잇몸) -> 파찰음(위치:천장)으로 둘 다 변합니다." },
+        { q: "'갈증'이 [갈쯩]이 되는 것은 한자어 'ㄹ' 뒤 된소리 규칙이다.", a: "O", e: "한자어 'ㄹ' 받침 뒤 'ㄷ,ㅅ,ㅈ'은 된소리가 됩니다." },
+        { q: "'옷고름[옫꼬름]'은 음운 개수 변화가 없다.", a: "O", e: "교체만 2번 일어났으므로 개수는 유지됩니다." },
+        { q: "'가서'는 동일 모음이 탈락한 현상이다.", a: "O", e: "가 + 아서 -> 가서 (ㅏ 탈락)." },
+        { q: "'잡히다[자피다]'는 자음 축약이다.", a: "O", e: "ㅂ+ㅎ -> ㅍ 축약입니다." },
+        { q: "'맨입[맨닙]'은 파생어에서 일어나는 ㄴ첨가이다.", a: "O", e: "접두사 '맨-' 뒤에 'ㄴ'이 첨가되었습니다." },
+        { q: "'막일[망닐]'에는 첨가와 교체가 모두 있다.", a: "O", e: "ㄴ첨가 후 비음화(교체)가 일어납니다." },
+        { q: "'영업용'의 발음은 [영엄뇽]이다.", a: "O", e: "ㄴ첨가 후 비음화가 적용된 결과입니다." },
+        { q: "'값하다[가파다]'는 탈락 후 축약이 일어난다.", a: "O", e: "ㅅ탈락(자음군 단순화) 후 ㅂ+ㅎ 축약입니다." },
+        { q: "'몫몫이[몽목씨]'에는 첨가가 있다.", a: "X", e: "탈락과 교체만 있을 뿐 첨가는 없습니다." },
+        { q: "'홑이불'은 [혼니불]로 발음된다.", a: "O", e: "끝소리(교체) -> ㄴ첨가 -> 비음화(교체) 단계입니다." },
+        { q: "'꽃망울[꼰망울]'은 비음화가 일어난 것이다.", a: "O", e: "끝소리 규칙 후 비음화가 적용됩니다." },
+        { q: "'넓히다'는 [널피다]이며 탈락 현상이다.", a: "X", e: "ㅂ+ㅎ 축약 현상입니다." },
+        { q: "'맑지'는 [말찌]로 발음한다.", a: "X", e: "ㄱ 앞이 아니므로 원칙대로 [막찌]가 맞습니다." },
+        { q: "'읊다[읍따]'는 음운 개수가 1개 줄어든다.", a: "O", e: "자음군 단순화(탈락)가 포함되어 -1입니다." },
+        { q: "'훑이다[훌치다]'에는 탈락이 있다.", a: "X", e: "연음과 구개음화만 있을 뿐 탈락은 없습니다." },
+        { q: "'않고'는 [안코]로 발음된다.", a: "O", e: "ㄴㅎ + ㄱ 이 만나 [안코]로 축약됩니다." },
+        { q: "'피어[피여]'는 모음 축약이다.", a: "X", e: "반모음 'ㅣ'가 덧붙은 반모음 첨가입니다." },
+        { q: "'잠가라'는 'ㅡ' 탈락이 일어난 것이다.", a: "O", e: "잠그- + -아라 에서 ㅡ가 탈락했습니다." },
+        { q: "'급행열차'의 발음은 [그팽열차]이다.", a: "X", e: "[그팽녈차]가 올바른 발음입니다." },
+        { q: "'서른여덟'은 [서른녀덜]로 발음된다.", a: "O", e: "ㄴ첨가와 자음군 단순화가 일어납니다." },
+        { q: "'맛없다[마덥따]'는 음절의 끝소리 규칙이 연음보다 먼저다.", a: "O", e: "'없'이 실질 형태소이기 때문입니다." },
+        { q: "'깨끗하다[깨끄타다]'는 교체 후 축약이 일어난다.", a: "O", e: "ㅅ->ㄷ(교체), ㄷ+ㅎ->ㅌ(축약)입니다." },
+        { q: "'몫이'는 [목씨]로 발음된다.", a: "O", e: "겹받침 연음 시 'ㅅ'은 된소리로 발음한다는 규정입니다." },
+        { q: "'나는(fly) 비행기'는 ㄹ 탈락이 적용된 표기다.", a: "O", e: "날- + -는 에서 ㄹ이 탈락하여 '나는'이 됩니다." },
+        { q: "'값지다[갑찌다]'는 탈락과 교체가 일어난다.", a: "O", e: "ㅅ탈락 후 된소리되기 교체입니다." },
+        { q: "'담요'의 [담뇨] 발음은 비음화 때문이다.", a: "X", e: "비음화가 아니라 ㄴ첨가 현상입니다." },
+        { q: "'대관령'은 [대관녕]으로 발음한다.", a: "X", e: "유음화에 의해 [대괄령]이 맞습니다." },
+        { q: "'소나무'는 ㄹ 탈락이 반영된 단어이다.", a: "O", e: "솔 + 나무 에서 ㄹ이 탈락한 합성어입니다." },
+        { q: "'조약돌[조약똘]'은 사잇소리 현상이다.", a: "X", e: "안울림소리 뒤 일반적인 된소리되기입니다." },
+        { q: "'나뭇잎'의 발음은 [나문닙]이다.", a: "O", e: "끝소리, ㄴ첨가, 비음화가 모두 일어납니다." },
+        { q: "'독립'은 [동닙]으로 발음되며 비음화가 2번 일어난다.", a: "O", e: "ㄹ의 비음화와 ㄱ의 비음화가 순차적으로 일어납니다." },
+        { q: "'결단력'의 발음은 [결딸력]이다.", a: "X", e: "예외적으로 [결딴녁]이 맞습니다." },
+        { q: "'이원론'은 [이원논]으로 발음한다.", a: "O", e: "ㄴ+ㄹ 결합의 비음화 예외 단어입니다." },
+        { q: "'여덟이'는 [여덜비]로 발음된다.", a: "O", e: "탈락 없이 그대로 연음됩니다." },
+        { q: "'읽고'는 [일꼬]로 발음된다.", a: "O", e: "ㄱ 앞 ㄹㄱ은 ㄹ로 발음하는 예외입니다." },
+        { q: "'발전'이 [발쩐]이 되는 것은 된소리되기이다.", a: "O", e: "한자어 ㄹ 뒤 된소리 규칙입니다." },
+        { q: "'서울역'은 [서울력]으로 발음된다.", a: "O", e: "ㄴ첨가 후 유음화가 일어난 결과입니다." },
+        { q: "'물엿'은 [물렫]으로 발음된다.", a: "O", e: "ㄴ첨가 후 유음화가 일어납니다." },
+        { q: "'핥다'는 [할따]로 발음된다.", a: "O", e: "ㄹㅌ은 ㄹ이 남고 ㄷ이 된소리가 됩니다." },
+        { q: "'깎다'가 [깍따]가 되는 것은 탈락이다.", a: "X", e: "ㄲ->ㄱ 은 '교체'이지 탈락이 아닙니다." },
+        { q: "'앉다'는 [안따]로 발음되며 탈락이 일어난다.", a: "O", e: "ㅈ이 탈락하는 자음군 단순화입니다." },
+        { q: "'끊고'는 [끈코]로 축약된다.", a: "O", e: "ㄴㅎ + ㄱ -> ㅋ 축약입니다." },
+        { q: "'놓는'은 [논는]으로 발음된다.", a: "O", e: "ㅎ이 ㄴ 앞에서 ㄷ으로 바뀐 뒤 비음화됩니다." },
+        { q: "'쌓지'는 [싸치]로 축약된다.", a: "O", e: "ㅎ + ㅈ -> ㅊ 축약입니다." },
+        { q: "'싫어'는 [시러]로 발음되며 'ㅎ'이 탈락한다.", a: "O", e: "모음 앞 ㅎ 탈락입니다." },
+        { q: "'젊다'는 [점따]로 발음된다.", a: "O", e: "ㄹㅁ은 ㅁ이 남습니다." },
+        { q: "'읊고'는 [읍꼬]로 발음된다.", a: "O", e: "ㄹㅍ -> ㅍ(탈락) -> ㅂ(교체) -> 꼬(교체) 단계입니다." },
+        { q: "'밟지'는 [밥찌]로 발음한다.", a: "O", e: "'밟-'은 자음 앞에서 'ㅂ'으로 발음합니다." },
+        { q: "'넓죽하다'는 [넙쭈카다]로 발음한다.", a: "O", e: "ㄹㅂ 중 ㅂ이 남는 예외 단어입니다." },
+        { q: "'갈등'의 된소리는 한자어 규칙 때문이다.", a: "O", e: "한자어 ㄹ 뒤 ㄷ,ㅅ,ㅈ 규칙입니다." },
+        { q: "'기차역'은 [기찬녁]으로 발음한다.", a: "X", e: "ㄴ첨가가 일어나지 않고 연음하여 [기차역]입니다." },
+        { q: "'학력'은 [항녁]으로 발음된다.", a: "O", e: "상호 비음화가 일어납니다." },
+        { q: "'법률'은 [범뉼]로 발음된다.", a: "O", e: "상호 비음화 결과입니다." },
+        { q: "'광한루'는 [광할루]로 발음된다.", a: "O", e: "역행 유음화입니다." },
+        { q: "'대관령'은 [대괄령]으로 발음된다.", a: "O", e: "역행 유음화입니다." },
+        { q: "'물난리'는 [물랄리]로 발음된다.", a: "O", e: "유음화가 연속으로 일어납니다." },
+        { q: "'끝인사'는 [끄친사]로 발음된다.", a: "X", e: "실질 형태소 앞이므로 [끄딘사]가 맞습니다." },
+        { q: "'홑몸'은 [혼몸]으로 발음된다.", a: "O", e: "ㅌ->ㄷ 후 비음화됩니다." },
+        { q: "'앞마당'은 [암마당]으로 발음된다.", a: "O", e: "ㅍ->ㅂ 후 비음화됩니다." },
+        { q: "'부엌문'은 [부엉문]으로 발음된다.", a: "O", e: "ㅋ->ㄱ 후 비음화됩니다." },
+        { q: "'활약'은 [활략]으로 발음된다.", a: "O", e: "ㄴ첨가 후 유음화가 일어납니다." },
+        { q: "'밟는'은 [밤는]으로 발음되며, 자음군 단순화와 비음화가 차례로 일어난다.", a: "O", e: "밟는 → 밥는(자음군 단순화/탈락) → [밤는](비음화/교체) 순서입니다." },
+        { q: "'읊다'가 [읍따]가 되는 과정에는 음운의 교체만 일어난다.", a: "X", e: "ㄹㅍ 중 ㄹ이 탈락하는 자음군 단순화가 먼저 일어납니다." },
+        { q: "'여덟'은 [여덜]로 발음되는 것이 원칙이다.", a: "O", e: "ㄹㅂ은 원칙적으로 ㄹ로 발음합니다." },
+        { q: "'값어치'는 [가버치]가 표준 발음이다.", a: "O", e: "실질 형태소 결합이므로 ㅄ 중 ㅅ 탈락 후 연음됩니다." },
+        { q: "'겉모양'은 [건모양]으로 발음되며 조음 방법이 동화된 것이다.", a: "O", e: "ㅌ->ㄷ(끝소리) -> ㄴ(비음화)로 조음 방법이 ㄴ에 동화된 것입니다." },
+        { q: "'깎는'은 [깡는]으로 발음된다.", a: "O", e: "ㄲ->ㄱ(끝소리) -> ㅇ(비음화) 단계입니다." },
+        { q: "'꽃받침'은 [꼳받침]으로 발음된다.", a: "O", e: "ㅊ이 음절 끝에서 ㄷ으로 교체됩니다." },
+        { q: "'신라'와 '권력'은 유음화의 방향이 같다.", a: "X", e: "신라[실라]는 역행, 권력[궐력]은 순행 동화입니다." },
+        { q: "'난로'는 [날로]로 발음되며 조음 위치가 변한 것이다.", a: "X", e: "ㄴ과 ㄹ은 모두 잇몸소리이므로 위치는 같고 방법만 변한 것입니다." },
+        { q: "'종로'가 [종노]로 발음되는 것은 비음화이다.", a: "O", e: "ㅇ 뒤에서 ㄹ이 ㄴ으로 변하는 비음화의 일종입니다." },
+        { q: "'독립'의 발음 과정에서 [독닙] 단계는 비음화이다.", a: "O", e: "ㄱ 뒤에서 ㄹ이 ㄴ으로 변하는 비음화 단계입니다." },
+        { q: "'심리'는 [심니]로 발음하며 순행 비음화이다.", a: "O", e: "ㅁ의 영향으로 ㄹ이 ㄴ으로 변했습니다." },
+        { q: "'물난리'는 [물랄리]로 발음된다.", a: "O", e: "유음화가 두 번 겹쳐 일어납니다." },
+        { q: "'공권력'은 [공꿘녁]으로 발음하는 것이 표준이다.", a: "O", e: "한자어 예외 규정으로 비음화가 일어납니다." },
+        { q: "'상견례'는 [상결례]가 표준 발음이다.", a: "X", e: "비음화 예외 규정으로 [상견녜]가 맞습니다." },
+        { q: "'입원료'는 [이붠뇨]로 발음된다.", a: "O", e: "ㄴ+ㄹ 결합이지만 비음화가 일어나는 한자어입니다." },
+        { q: "'굳히다'는 구개음화가 일어나기 전 축약이 먼저 일어난다.", a: "O", e: "ㄷ+ㅎ -> ㅌ(축약) 후 ㅌ+ㅣ -> ㅊ(교체)입니다." },
+        { q: "'핥이다'는 [할치다]로 발음된다.", a: "O", e: "ㄹㅌ의 ㅌ이 연음된 후 구개음화가 일어납니다." },
+        { q: "'끝인사'는 [끄친사]로 발음한다.", a: "X", e: "실질 형태소 '인사' 앞이므로 ㅌ->ㄷ 후 연음되어 [끄딘사]입니다." },
+        { q: "'홀이불'은 [홀리불]로 발음한다.", a: "X", e: "[혼니불]이겠죠." },
+        { q: "'집안'은 [지반]으로 발음하며 음운 변동이 없다.", a: "O", e: "연음은 음운 변동으로 치지 않습니다." },
+        { q: "'꽃 위'는 [꼬뒤]로 발음한다.", a: "O", e: "실질 형태소 '위' 앞이므로 끝소리 규칙 후 연음합니다." },
+        { q: "'늪 앞'은 [느밥]으로 발음한다.", a: "O", e: "ㅍ->ㅂ(교체) 후 연음됩니다." },
+        { q: "'옷 안'은 [오단]으로 발음한다.", a: "O", e: "ㅅ->ㄷ(교체) 후 연음됩니다." },
+        { q: "'헛웃음'은 [허두슴]으로 발음한다.", a: "O", e: "ㅅ->ㄷ(교체) 후 연음됩니다." },
+        { q: "'맛있다'는 [마싣따]만 표준 발음으로 인정한다.", a: "X", e: "[마싣따]와 [마싣따] 모두 인정합니다." },
+        { q: "'멋있다'는 [머싣따]와 [머딛따]를 모두 인정한다.", a: "O", e: "맛있다/멋있다 모두 두 가지 발음을 허용합니다." },
+        { q: "'신고[신꼬]'는 된소리되기가 일어난 예이다.", a: "O", e: "어간 비음 ㄴ 뒤에서 어미 ㄱ이 된소리가 됩니다." },
+        { q: "'신다'에 '-기-'가 붙은 '신기다'는 [신끼다]로 발음한다.", a: "X", e: "피동/사동 접미사 '-기-'는 된소리되기가 일어나지 않아 [신기다]입니다." },
+        { q: "'담다'에 '-기-'가 붙은 '담기다'는 [담기다]로 발음한다.", a: "O", e: "피동/사동 접미사는 된소리 규칙 예외입니다." },
+        { q: "'핥다'는 [할따]로 발음한다.", a: "O", e: "어간 받침 ㄹㅌ 뒤에서 ㄷ이 된소리가 됩니다." },
+        { q: "'젊다'는 [점따]로 발음한다.", a: "O", e: "어간 받침 ㄹㅁ 뒤에서 ㄷ이 된소리가 됩니다." },
+        { q: "'교과서'는 [교과서]가 표준 발음이다.", a: "O", e: "[교꽈서]는 잘못된 발음입니다." },
+        { q: "'무릎이'는 [무르피]로 발음한다.", a: "O", e: "ㅍ이 그대로 연음됩니다." },
+        { q: "'부엌이'는 [부어키]로 발음한다.", a: "O", e: "ㅋ이 그대로 연음됩니다." },
+        { q: "'꽃이'는 [꼬치]로 발음한다.", a: "O", e: "ㅊ이 그대로 연음됩니다." },
+        { q: "'밭에'는 [바테]로 발음한다.", a: "O", e: "ㅌ이 그대로 연음됩니다." },
+        { q: "'솥을'은 [소틀]로 발음한다.", a: "O", e: "ㅌ이 그대로 연음됩니다." },
+        { q: "'깻잎'은 [깬닙]으로 발음한다.", a: "O", e: "ㄴ첨가와 비음화가 일어납니다." },
+        { q: "'베갯잇'은 [베갠닛]으로 발음한다.", a: "O", e: "ㄴ첨가와 비음화가 일어납니다." },
+        { q: "'나뭇잎'은 [나문닙]으로 발음한다.", a: "O", e: "ㄴ첨가와 비음화가 일어납니다." },
+        { q: "'뒷일'은 [뒨닐]로 발음한다.", a: "O", e: "ㄴ첨가와 비음화가 일어납니다." },
+        { q: "'절약'은 [절략]으로 발음한다.", a: "X", e: "ㄴ첨가 없이 연음하여 [저략]으로 발음합니다." },
+        { q: "'내복약'은 [내봉냑]으로 발음한다.", a: "O", e: "ㄴ첨가 후 비음화가 일어납니다." },
+        { q: "'한여름'은 [한녀름]으로 발음한다.", a: "O", e: "ㄴ첨가가 일어납니다." },
+        { q: "'담요'는 [담뇨]로 발음한다.", a: "O", e: "ㄴ첨가가 일어납니다." },
+        { q: "'식용유'는 [시용뉴]로 발음한다.", a: "X", e: "연음과 ㄴ첨가로 [시굥뉴]가 됩니다." }
+    ];
+
+    let currentQuestions = [];
+    let currentIndex = 0;
+    let score = 0;
+    let isAnswered = false;
+
+    function initQuiz() {
+        // 전체 문제 중 10문제 랜덤 추출
+        currentQuestions = [...allQuizData].sort(() => Math.random() - 0.5).slice(0, 10);
+        currentIndex = 0;
+        score = 0;
+        showQuestion();
+    }
+
+    function showQuestion() {
+        isAnswered = false;
+        const qData = currentQuestions[currentIndex];
+        document.getElementById('display-q-num').innerText = currentIndex + 1;
+        document.getElementById('display-q-text').innerText = qData.q;
+        document.getElementById('current-score').innerText = score;
+        document.getElementById('feedback').innerText = "";
+        document.getElementById('explanation').style.display = "none";
+        document.getElementById('next-btn').style.display = "none";
+        
+        const btns = document.querySelectorAll('.ox-btn');
+        btns.forEach(b => { b.disabled = false; b.style.opacity = "1"; });
+    }
+
+    function handleAnswer(userChoice) {
+        if(isAnswered) return;
+        isAnswered = true;
+        
+        const qData = currentQuestions[currentIndex];
+        const feedback = document.getElementById('feedback');
+        const explanation = document.getElementById('explanation');
+        const nextBtn = document.getElementById('next-btn');
+        const btns = document.querySelectorAll('.ox-btn');
+
+        btns.forEach(b => {
+            b.disabled = true;
+            if(b.innerText !== userChoice) b.style.opacity = "0.3";
+        });
+
+        if(userChoice === qData.a) {
+            score++;
+            feedback.innerText = "✅ 정답입니다!";
+            feedback.style.color = "#28a745";
+        } else {
+            feedback.innerText = "❌ 오답입니다!";
+            feedback.style.color = "#dc3545";
+        }
+
+        explanation.innerText = "💡 해설: " + qData.e;
+        explanation.style.display = "block";
+        nextBtn.style.display = "inline-block";
+        if(currentIndex === 9) nextBtn.innerText = "결과 확인하기";
+    }
+
+    function goToNext() {
+        currentIndex++;
+        if(currentIndex < 10) {
+            showQuestion();
+        } else {
+            showResult();
+        }
+    }
+
+    function showResult() {
+        document.getElementById('quiz-screen').style.display = "none";
+        document.getElementById('result-screen').style.display = "block";
+        document.getElementById('final-score').innerText = score;
+        
+        let msg = "";
+        if(score === 10) msg = "진희T의 애제자 인증 🏆";
+        else if(score === 9) msg = "오늘 공부 많이 된다 👍";
+        else if(score >= 7) msg = "스트레스 많이 받을 거야 💢";
+        else if(score >= 3) msg = "뭐하세요? ❓";
+        else msg = "5등급 미리 축하 드립니다 🎓";
+        
+        document.getElementById('rank-comment').innerText = msg;
+    }
+
+    initQuiz();
+</script>
+
+</body>
+</html>
